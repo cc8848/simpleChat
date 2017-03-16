@@ -13,8 +13,6 @@ class Client(nick: String, serverAddress: String, port: Int) {
 
   private val trySocket: Try[Socket] = init(serverAddress, port)
   private val tryUdpSocket: Try[DatagramSocket] = Try(new DatagramSocket())
-  private[this] val isSending = new AtomicBoolean(false)
-  private[this] val isReceiving = new AtomicBoolean(false)
   private[this] val isStreaming = new AtomicBoolean(false)
   implicit private[this] val executionContext = ExecutionContext.global
 
@@ -51,6 +49,7 @@ class Client(nick: String, serverAddress: String, port: Int) {
       val initPacket = new DatagramPacket(data, data.length, address, port)
       socket.send(initPacket)
       isStreaming.set(true)
+      receiveUdpFuture(socket)
     }
   }
 
@@ -98,7 +97,6 @@ class Client(nick: String, serverAddress: String, port: Int) {
   def mainLoop(socket: Socket, datagramSocket: DatagramSocket): Unit = {
     sendMessage(socket, datagramSocket)
     receiveTcpFuture(socket)
-    receiveUdpFuture(datagramSocket)
   }
 
   private def exit(socket: Socket): Unit = {
