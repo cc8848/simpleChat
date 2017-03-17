@@ -34,6 +34,17 @@ class Client(nick: String, serverAddress: String, port: Int) {
       Failed
   }
 
+  private def sendAvatar(datagramSocket: DatagramSocket): Unit = {
+    import Client.avatar
+    val avatarLines = avatar.split("\n")
+    val address = InetAddress.getByName(serverAddress)
+    for (line <- avatarLines) {
+      val data = line.getBytes
+      val packet = new DatagramPacket(data, data.length, address, port)
+      datagramSocket.send(packet)
+    }
+  }
+
   private def receiveMessage(socket: Socket): Unit = try {
     val reader = new BufferedReader(new InputStreamReader(socket.getInputStream))
     println(reader.readLine())
@@ -70,6 +81,8 @@ class Client(nick: String, serverAddress: String, port: Int) {
       initUdp(datagramSocket)
     } else if (userInput == "X") {
       disableUdp(datagramSocket)
+    } else if (userInput == "N") {
+      sendAvatar(datagramSocket)
     }
     else {
       sendMessage(socket, userInput)
@@ -124,6 +137,14 @@ class Client(nick: String, serverAddress: String, port: Int) {
 
 object Client {
 
+  val avatar: String =
+    """
+      |--```---```---
+      |--------------
+      |----\___/-----
+      | ---&&&&&-----
+    """.stripMargin
+
   sealed trait SendResult
 
   case object Ok extends SendResult
@@ -133,6 +154,7 @@ object Client {
   case object Locked extends SendResult
 
   def main(args: Array[String]): Unit = {
+    println(avatar)
     val nick = io.StdIn.readLine("Type your nick\n")
     val client = new Client(nick, "localhost", 8080)
     client.start()

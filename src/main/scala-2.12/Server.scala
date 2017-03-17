@@ -36,7 +36,7 @@ class Server {
     reader.readLine()
   }
 
-  private def sendMessage[T: JsonFormat](socket: Socket, message: String): Future[Unit] = Future {
+  private def sendMessage(socket: Socket, message: String): Future[Unit] = Future {
     val writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream), true)
     writer.println(message)
   }
@@ -64,11 +64,19 @@ class Server {
     if (udpAcceptingFlag.compareAndSet(false, true)) {
       val packet = new DatagramPacket(buffer, buffer.length)
       udpServerSocket.receive(packet)
-      val idString = new String(packet.getData)
-      if (idString.startsWith(CommunicationProtocol.initializeUdp)) {
-        udpClients.put(idString.split("::")(1), UdpEntry(packet.getAddress, packet.getPort))
-      } else if (idString.startsWith(CommunicationProtocol.disableUdp)) {
-        udpClients.remove(idString.split("::")(1))
+      val dataString = new String(packet.getData)
+      if (dataString.startsWith(CommunicationProtocol.initializeUdp)) {
+        udpClients.put(dataString.split("::")(1), UdpEntry(packet.getAddress, packet.getPort))
+      } else if (dataString.startsWith(CommunicationProtocol.disableUdp)) {
+        udpClients.remove(dataString.split("::")(1))
+      } else {
+        try {
+          val ASCIIArtDatagram(id, line) = dataString.parseJson.convertTo[ASCIIArtDatagram]
+          for ((receiverId, ClientEntry(socket, _, _, _)) <- clients if receiverId != id) sendMessage(socket, line)
+        } catch {
+          case _: Throwable =>
+            println(s"Failed to parse message $dataString")
+        }
       }
       udpAcceptingFlag.set(false)
     }
